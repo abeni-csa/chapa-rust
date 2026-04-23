@@ -2,6 +2,8 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
+use crate::models::bank::Currency;
+
 /// Represents the response from Chapa when fetching all transactions.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct GetTransactionsResponse {
@@ -75,4 +77,31 @@ pub struct Pagination {
     pub next_page_url: Option<String>,
     /// URL to the previous page of transactions.
     pub prev_page_url: Option<String>,
+}
+/// Represents  Cancle transaction by its transaction reference
+#[derive(Debug, Deserialize)]
+pub struct CancelTransactionResponse {
+    /// Status of the cancel transaction Respose
+    pub status: String,
+    /// message Containg deatile about the Respose
+    pub message: String,
+    /// Data about the canceled in deatile, like its tx_ref, amout
+    pub data: Option<CancelTransactionData>,
+}
+/// Data structure representing a canceled transaction response from Chapa.
+#[derive(Debug, Deserialize)]
+pub struct CancelTransactionData {
+    /// The unique transaction reference string.
+    pub tx_ref: String,
+
+    /// The transaction amount.
+    pub amount: f64,
+
+    /// The transaction currency code.
+    pub currency: Currency,
+    /// When the transaction was created.
+    pub created_at: DateTime<Utc>,
+
+    /// When the cancellation occurred.
+    pub updated_at: DateTime<Utc>,
 }

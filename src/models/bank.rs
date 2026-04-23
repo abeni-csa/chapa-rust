@@ -2,6 +2,7 @@
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use std::fmt;
 
 /// Represents a single bank entry from Chapa’s bank list.
 #[derive(Debug, Serialize, Deserialize)]
@@ -35,4 +36,32 @@ pub enum Currency {
     ETB,
     /// United States Dollar
     USD,
+}
+
+impl Currency {
+    /// Returns the ISO 4217 currency code as a static string slice.
+    /// # Examples
+    /// ```
+    /// let currency = ChapaCurrency::ETB;
+    /// assert_eq!(currency.as_str(), "ETB");
+    /// ```
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::ETB => "ETB",
+            Self::USD => "USD",
+        }
+    }
+}
+
+impl fmt::Display for Currency {
+    /// Formats the currency as its three‑letter ISO 4217 code.
+    /// This enables direct use in formatting macros like `println!` and `format!`. Which Result Direct `String`
+    /// # Examples
+    /// ```
+    /// let currency = ChapaCurrency::USD;
+    /// assert_eq!(format!("{}", currency), "USD");
+    /// ```
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(self.as_str())
+    }
 }

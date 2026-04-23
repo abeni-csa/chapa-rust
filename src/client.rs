@@ -29,6 +29,7 @@ use crate::{
     models::{
         payment::InitializeOptions,
         response::{GetBanksResponse, InitializeResponse, VerifyResponse},
+        transaction::CancelTransactionResponse,
     },
 };
 
@@ -205,6 +206,33 @@ impl ChapaClient {
             .make_request::<VerifyResponse, ()>(endpoint.as_str(), "GET", None)
             .await?;
 
+        Ok(response)
+    }
+
+    /// Cancels an active transaction, expiring its checkout link.
+    /// This Functions `PUT` to request `transaction/cancel/{tx_ref}`
+    /// and returns the transaction’s cancelation details.
+    ///
+    /// # Arguments
+    /// * `tx_ref` - Your transaction reference used when initializing the payment.
+    ///
+    /// # Example
+    /// ```
+    /// #[tokio::main]
+    /// async fn main() {
+    /// use chapa_rust::{client::ChapaClient, config::ChapaConfigBuilder};
+    /// dotenvy::dotenv().ok();
+    /// let config = ChapaConfigBuilder::new().build().unwrap();
+    /// let mut client = ChapaClient::from_config(config).unwrap();
+    /// let tx_ref = "tx-456-sdf";
+    /// let response = client.cancel_transaction(tx_ref).await.unwrap();
+    /// }
+    /// ```
+    pub async fn cancel_transaction(&self, tx_ref: &str) -> Result<CancelTransactionResponse> {
+        let endpoint = format!("transaction/cancel/{}", tx_ref);
+        let response = self
+            .make_request::<CancelTransactionResponse, ()>(endpoint.as_str(), "PUT", None)
+            .await?;
         Ok(response)
     }
 }
@@ -461,5 +489,56 @@ mod tests {
 
         success.assert_async().await;
         failure.assert_async().await;
+    }
+
+    #[tokio::test]
+    async fn test_cancel_transaction_success() {
+        let mut server = mockito::Server::new_async().await;
+        let tx_ref = "tx-456-sdf";
+
+        let success_mock = server
+            .mock("PUT", format!("/v1/transaction/cancel/{}", tx_ref).as_str())
+            .match_header(
+                "authorization",
+                Matcher::Regex(r#"^Bearer .+$"#.to_string()),
+            )
+            .with_status(200)
+            .with_header("content-type", "application/json")
+            .with_body(
+                serde_json::to_string(&serde_json::json!(
+                    {
+                        "message": "Checkout link expired successfully",
+                        "status": "success",
+                        "data": {
+                            "tx_ref": "tx-456-sdf",
+                            "amount": 5,
+                            "currency": "ETB",
+                            "created_at": "2025-10-22T09:10:03.000000Z",
+                            "updated_at": "2025-10-22T09:10:21.000000Z"
+                        }
+                    }
+                ))
+                .unwrap(),
+            )
+            .create_async()
+            .await;
+
+        let config = ChapaConfigBuilder::new()
+            .base_url(server.url())
+            .api_key("CHASECK-xxxxxxxxxxxxxxxx")
+            .build()
+            .unwrap();
+        let client = ChapaClient::from_config(config).unwrap();
+        let response = client.cancel_transaction(tx_ref).await.unwrap();
+        assert_eq!(response.status, "success");
+        assert_eq!(response.message, "Checkout link expired successfully");
+        assert!(response.data.is_some());
+
+        let data = response.data.unwrap();
+        assert_eq!(data.tx_ref, tx_ref);
+        assert_eq!(data.amount, 5.0);
+        assert_eq!(data.currency.as_str(), "ETB");
+
+        success_mock.assert_async().await;
     }
 }

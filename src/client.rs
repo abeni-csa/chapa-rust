@@ -541,4 +541,42 @@ mod tests {
 
         success_mock.assert_async().await;
     }
+
+    #[tokio::test]
+    async fn test_cancel_transaction_already_expired() {
+        let mut server = mockito::Server::new_async().await;
+        let tx_ref = "already-expired-ref";
+        let failure_mock = server
+            .mock("PUT", format!("/v1/transaction/cancel/{}", tx_ref).as_str())
+            .match_header(
+                "authorization",
+                Matcher::Regex(r#"^Bearer .+$"#.to_string()),
+            )
+            .with_status(200)
+            .match_header("content-type", "application/json")
+            .with_body(
+                serde_json::to_string(&serde_json::json!({
+                    "message": "Payment link already expired",
+                    "status": "failed",
+                    "data": null
+                }))
+                .unwrap(),
+            )
+            .create_async()
+            .await;
+
+        let config = ChapaConfigBuilder::new()
+            .base_url(server.url())
+            .api_key("CHASECK-xxxxxxxxxxxxxxxx")
+            .build()
+            .unwrap();
+        let client = ChapaClient::from_config(config).unwrap();
+
+        let response = client.cancel_transaction(tx_ref).await.unwrap();
+        assert_eq!(response.status, "failed");
+        assert_eq!(response.message, "Payment link already expired");
+        assert!(response.data.is_none());
+
+        failure_mock.assert_async().await;
+    }
 }

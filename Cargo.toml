@@ -3,18 +3,21 @@ name = "chapa-rust"
 version = "0.1.0"
 edition = "2024"
 description = "Chapa SDK for Rust to integrate Chapa payment gateway into your Rust applications."
-authors = []                                                                                       # TODO: Fill it. 
+
+authors = [] # TODO: Fill it. 
+
 license = "MIT"
+
 repository = "https://github.com/Chapa-Et/chapa-rust"
-# homepage = "https://github.com/Chapa-Et/chapa-rust" # Link to the project homepage
-# documentation = "https://docs.rs/chapa-rust" # Link to the documentation
+
+homepage = "https://developer.chapa.co/"
+
+# documentation = "https://docs.rs/chapa-rust" # Not realeased yet
+
 readme = "README.md"
-keywords = [
-  "Chapa",
-  "rust-sdk",
-  "payment",
-  "gateway",
-] # Tags to help users find your crate
+
+keywords = ["chapa", "rust-sdk", "payment", "gateway"]
+
 categories = [
   "api-bindings",
   "asynchronous",

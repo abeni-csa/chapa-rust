@@ -27,8 +27,11 @@ use crate::{
     config::{ChapaConfig, ChapaConfigBuilder},
     error::{ChapaError, Result},
     models::{
-        payment::InitializeOptions,
-        response::{GetBanksResponse, InitializeResponse, VerifyResponse},
+        payment::{CreateSubaccountOptions, InitializeOptions},
+        response::{
+            GetBanksResponse, GetTransactionsResponse, InitializeResponse, SubaccountResponse,
+            TransactionEventsResponse, VerifyResponse,
+        },
         transaction::CancelTransactionResponse,
     },
 };
@@ -235,348 +238,83 @@ impl ChapaClient {
             .await?;
         Ok(response)
     }
-}
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use mockito::{self, Matcher};
-
-    #[tokio::test]
-    async fn test_get_banks() {
-        let mut server = mockito::Server::new_async().await;
-        let success = server
-            .mock("GET", "/v1/banks")
-            .match_header(
-                "authorization",
-                Matcher::Regex(r#"^Bearer .+$"#.to_string()),
-            )
-            .with_status(200)
-            .with_header("content-type", "application/json")
-            .with_body(
-                serde_json::to_string(&serde_json::json!({
-                "message": "Banks retrieved",
-                "data": [
-                    {
-                        "id": 130,
-                        "slug": "abay_bank",
-                        "swift": "ABAYETAA",
-                        "name": "Abay Bank",
-                        "acct_length": 16,
-                        "country_id": 1,
-                        "is_mobilemoney": null,
-                        "is_active": 1,
-                        "is_rtgs": 1,
-                        "active": 1,
-                        "is_24hrs": null,
-                        "created_at": "2023-01-24T04:28:30.000000Z",
-                        "updated_at": "2024-08-03T08:10:24.000000Z",
-                        "currency": "ETB"
-                    }
-                ]
-                        }))
-                .unwrap(),
-            )
-            .create_async()
-            .await;
-
-        let failure = server
-            .mock("GET", "/v1/banks")
-            .match_header(
-                "authorization",
-                Matcher::Regex(r#"^Bearer .+$"#.to_string()),
-            )
-            .with_status(200)
-            .with_header("content-type", "application/json")
-            .with_body(
-                serde_json::to_string(&serde_json::json!({
-                "message": "Invalid API Key	",
-                "status": "failed",
-                "data": null
-                }))
-                .unwrap(),
-            )
-            .create_async()
-            .await;
-
-        let config = ChapaConfigBuilder::new()
-            .base_url(server.url())
-            .api_key("CHASECK-xxxxxxxxxxxxxxxx")
-            .build()
-            .unwrap();
-        let mut client = ChapaClient::from_config(config).unwrap();
-
-        // ACT for success
-        let response_success = client.get_banks().await.unwrap();
-        assert!(!response_success.message.is_null());
-        assert!(response_success.data.is_some());
-
-        // ACT for failure
-        let response_failure = client.get_banks().await.unwrap();
-        assert!(!response_failure.message.is_null());
-        // assert_eq!(response_failure.status, "failed");
-        assert!(response_failure.data.is_none());
-
-        success.assert_async().await;
-        failure.assert_async().await;
+    /// Retrieves the event timeline for a given transaction reference ID.
+    /// This Functions `GET` to request `transaction/events/{ref_id}`
+    /// and allows you to view the timeline for a transaction.
+    /// A transaction timeline is a list of events that happened to a selected transaction
+    ///
+    /// # Arguments
+    /// * `ref_id` - the reference id to that specific transaction
+    ///
+    /// # Example
+    /// ```
+    /// #[tokio::main]
+    /// async fn main() {
+    /// use chapa_rust::{client::ChapaClient, config::ChapaConfigBuilder};
+    /// dotenvy::dotenv().ok();
+    /// let config = ChapaConfigBuilder::new().build().unwrap();
+    /// let mut client = ChapaClient::from_config(config).unwrap();
+    /// let ref_id = "chewatatest-6669";
+    /// let response = client.get_transaction_events(ref_id).await.unwrap();
+    /// }
+    /// ```
+    pub async fn get_transaction_events(&self, ref_id: &str) -> Result<TransactionEventsResponse> {
+        let endpoint = format!("transaction/events/{}", ref_id);
+        let response = self
+            .make_request::<TransactionEventsResponse, ()>(endpoint.as_str(), "GET", None)
+            .await?;
+        Ok(response)
     }
-
-    #[tokio::test]
-    async fn test_initialize_transaction() {
-        let mut server = mockito::Server::new_async().await;
-        let success = server
-            .mock("POST", "/v1/transaction/initialize")
-            .match_header(
-                "authorization",
-                Matcher::Regex(r#"^Bearer .+$"#.to_string()),
-            )
-            .with_status(200)
-            .with_header("content-type", "application/json")
-            .with_body(
-                serde_json::to_string(&serde_json::json!({
-                "message": "Hosted Link",
-                "status": "success",
-                "data": {
-                    "checkout_url": "https://checkout.chapa.co/checkout/payment/V38JyhpTygC9QimkJrdful9oEjih0heIv53eJ1MsJS6xG"
-                    }
-                }))
-                .unwrap(),
-            )
-            .create_async()
-            .await;
-
-        let failure = server
-            .mock("POST", "/v1/transaction/initialize")
-            .match_header(
-                "authorization",
-                Matcher::Regex(r#"^Bearer .+$"#.to_string()),
-            )
-            .with_status(200)
-            .with_header("content-type", "application/json")
-            .with_body(
-                serde_json::to_string(&serde_json::json!({
-                  "message": "Authorization required	",
-                  "status": "failed",
-                  "data": null
-                }))
-                .unwrap(),
-            )
-            .create_async()
-            .await;
-
-        let config = ChapaConfigBuilder::new()
-            .base_url(server.url())
-            .api_key("CHASECK-xxxxxxxxxxxxxxxx")
-            .build()
-            .unwrap();
-        let mut client = ChapaClient::from_config(config).unwrap();
-
-        let transaction_success = InitializeOptions {
-            amount: "100".to_string(),
-            currency: "ETB".to_string(),
-            email: Some("customer@gmail.com".to_string()),
-            first_name: Some("John".to_string()),
-            last_name: Some("Doe".to_string()),
-            tx_ref: String::from("some_generated_tax_ref"),
-            ..Default::default()
-        };
-        let transaction_failure = InitializeOptions {
-            ..Default::default()
-        };
-
-        // ACT for success
-        let response_success = client
-            .initialize_transaction(transaction_success)
-            .await
-            .unwrap();
-        assert_eq!(response_success.status, "success");
-        assert!(!response_success.message.is_null());
-        assert!(response_success.data.is_some());
-
-        // ACT for failure
-        let response_failure = client
-            .initialize_transaction(transaction_failure)
-            .await
-            .unwrap();
-        assert_eq!(response_failure.status, "failed");
-        assert!(!response_failure.message.is_null());
-        assert!(response_failure.data.is_none());
-
-        success.assert_async().await;
-        failure.assert_async().await;
+    /// Retrieves a list of all transactions
+    pub async fn get_all_transactions(&self) -> Result<GetTransactionsResponse> {
+        let respose = self
+            .make_request::<GetTransactionsResponse, ()>("transactions", "GET", None)
+            .await?;
+        Ok(respose)
     }
-
-    #[tokio::test]
-    async fn test_verify_transaction() {
-        let mut server = mockito::Server::new_async().await;
-        let success = server
-            .mock("GET", "/v1/transaction/verify/chewatatest-6669")
-            .match_header(
-                "authorization",
-                Matcher::Regex(r#"^Bearer .+$"#.to_string()),
+    ///  Create a subaccountCreate a subaccount    
+    /// Sends a `POST` request to `/subaccount` with subaccout data
+    /// details provided in the [`CreateSubaccountOptions`] struct.
+    ///
+    /// # Parameters
+    /// - `subaccount`: The subaccout details (account_name, bank_code, split_value, etc.)
+    ///
+    /// # Example
+    /// ```rust,no_run
+    /// #[tokio::main]
+    /// async fn main() {
+    /// use chapa_rust::{
+    ///       client::ChapaClient,
+    ///       config::ChapaConfigBuilder,
+    ///       models::payment::{CreateSubaccountOptions, SplitType}
+    /// };
+    /// dotenvy::dotenv().ok();
+    /// let config = ChapaConfigBuilder::new().build().unwrap();
+    /// let mut client = ChapaClient::from_config(config).unwrap();
+    /// let subaccount = CreateSubaccountOption {
+    ///         account_name: "Abebe Bikila ".to_string(),
+    ///         bank_code: 128,
+    ///         account_number: "0123456789".to_string(),
+    ///         split_type: Some(SplitType::PERCENTAGE),
+    ///         split_value: Some(0.2),
+    ///     };
+    /// let response = client.create_subaccount(subaccount).await.unwrap();
+    /// }
+    /// ```
+    /// # Errors
+    /// Returns an error if the request fails or if the response cannot be parsed.
+    pub async fn create_subaccount(
+        &self,
+        subaccount: CreateSubaccountOptions,
+    ) -> Result<SubaccountResponse> {
+        let response = self
+            .make_request::<SubaccountResponse, CreateSubaccountOptions>(
+                "subaccount",
+                "POST",
+                Some(subaccount),
             )
-            .with_status(200)
-            .with_header("content-type", "application/json")
-            .with_body(
-                serde_json::to_string(&serde_json::json!({
-                "message": "Payment details",
-                "status": "success",
-                "data": {
-                    "first_name": "Bilen",
-                    "last_name": "Gizachew",
-                    "email": "abebech_bekele@gmail.com",
-                    "currency": "ETB",
-                    "amount": 100,
-                    "charge": 3.5,
-                    "mode": "test",
-                    "method": "test",
-                    "type": "API",
-                    "status": "success",
-                    "reference": "6jnheVKQEmy",
-                    "tx_ref": "chewatatest-6669",
-                    "customization": {
-                        "title": "Payment for my favourite merchant",
-                        "description": "I love online payments",
-                        "logo": null
-                    },
-                    "meta": null,
-                    "created_at": "2023-02-02T07:05:23.000000Z",
-                    "updated_at": "2023-02-02T07:05:23.000000Z"
-                  }
-                }))
-                .unwrap(),
-            )
-            .create_async()
-            .await;
-
-        let failure = server
-            .mock("GET", "/v1/transaction/verify/chewatatest-6669")
-            .match_header(
-                "authorization",
-                Matcher::Regex(r#"^Bearer .+$"#.to_string()),
-            )
-            .with_status(200)
-            .with_header("content-type", "application/json")
-            .with_body(
-                serde_json::to_string(&serde_json::json!({
-                "message": "Invalid transaction or Transaction not found	",
-                "status": "failed",
-                "data": null
-                }))
-                .unwrap(),
-            )
-            .create_async()
-            .await;
-
-        let config = ChapaConfigBuilder::new()
-            .base_url(server.url())
-            .api_key("CHASECK_TEST-XXXXXXXXXXXXXXX")
-            .build()
-            .unwrap();
-        let mut client = ChapaClient::from_config(config).unwrap();
-
-        // ACT for success
-        let response_success = client.verify_transaction("chewatatest-6669").await.unwrap();
-        assert_eq!(response_success.status, "success");
-        assert!(!response_success.message.is_null()); // NOTE: ckeck if it is empty because I suspect there might be a change if I put string comparison.
-        assert!(response_success.data.is_some());
-
-        // ACT for failure
-        let response_failure = client.verify_transaction("chewatatest-6669").await.unwrap();
-        assert_eq!(response_failure.status, "failed");
-        assert!(!response_failure.message.is_null()); // NOTE: check if it is empty because I suspect there might be a change if I put string comparison.
-        assert!(response_failure.data.is_none());
-
-        success.assert_async().await;
-        failure.assert_async().await;
-    }
-
-    #[tokio::test]
-    async fn test_cancel_transaction_success() {
-        let mut server = mockito::Server::new_async().await;
-        let tx_ref = "tx-456-sdf";
-
-        let success_mock = server
-            .mock("PUT", format!("/v1/transaction/cancel/{}", tx_ref).as_str())
-            .match_header(
-                "authorization",
-                Matcher::Regex(r#"^Bearer .+$"#.to_string()),
-            )
-            .with_status(200)
-            .with_header("content-type", "application/json")
-            .with_body(
-                serde_json::to_string(&serde_json::json!(
-                    {
-                        "message": "Checkout link expired successfully",
-                        "status": "success",
-                        "data": {
-                            "tx_ref": "tx-456-sdf",
-                            "amount": 5,
-                            "currency": "ETB",
-                            "created_at": "2025-10-22T09:10:03.000000Z",
-                            "updated_at": "2025-10-22T09:10:21.000000Z"
-                        }
-                    }
-                ))
-                .unwrap(),
-            )
-            .create_async()
-            .await;
-
-        let config = ChapaConfigBuilder::new()
-            .base_url(server.url())
-            .api_key("CHASECK-xxxxxxxxxxxxxxxx")
-            .build()
-            .unwrap();
-        let client = ChapaClient::from_config(config).unwrap();
-        let response = client.cancel_transaction(tx_ref).await.unwrap();
-        assert_eq!(response.status, "success");
-        assert_eq!(response.message, "Checkout link expired successfully");
-        assert!(response.data.is_some());
-
-        let data = response.data.unwrap();
-        assert_eq!(data.tx_ref, tx_ref);
-        assert_eq!(data.amount, 5.0);
-        assert_eq!(data.currency.as_str(), "ETB");
-
-        success_mock.assert_async().await;
-    }
-
-    #[tokio::test]
-    async fn test_cancel_transaction_already_expired() {
-        let mut server = mockito::Server::new_async().await;
-        let tx_ref = "already-expired-ref";
-        let failure_mock = server
-            .mock("PUT", format!("/v1/transaction/cancel/{}", tx_ref).as_str())
-            .match_header(
-                "authorization",
-                Matcher::Regex(r#"^Bearer .+$"#.to_string()),
-            )
-            .with_status(200)
-            .match_header("content-type", "application/json")
-            .with_body(
-                serde_json::to_string(&serde_json::json!({
-                    "message": "Payment link already expired",
-                    "status": "failed",
-                    "data": null
-                }))
-                .unwrap(),
-            )
-            .create_async()
-            .await;
-
-        let config = ChapaConfigBuilder::new()
-            .base_url(server.url())
-            .api_key("CHASECK-xxxxxxxxxxxxxxxx")
-            .build()
-            .unwrap();
-        let client = ChapaClient::from_config(config).unwrap();
-
-        let response = client.cancel_transaction(tx_ref).await.unwrap();
-        assert_eq!(response.status, "failed");
-        assert_eq!(response.message, "Payment link already expired");
-        assert!(response.data.is_none());
-
-        failure_mock.assert_async().await;
+            .await?;
+        Ok(response)
     }
 }

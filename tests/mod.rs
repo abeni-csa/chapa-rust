@@ -1,7 +1,10 @@
+mod subaccounts_test;
 mod transaction_test;
+mod transfer_test;
 
 use chapa_rust::{client::ChapaClient, config::ChapaConfigBuilder};
 use mockito::{self, Matcher};
+
 #[tokio::test]
 async fn test_get_banks() {
     let mut server = mockito::Server::new_async().await;

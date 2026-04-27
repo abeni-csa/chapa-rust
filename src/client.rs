@@ -29,10 +29,11 @@ use crate::{
     models::{
         payment::{CreateSubaccountOptions, InitializeOptions},
         response::{
-            GetBanksResponse, GetTransactionsResponse, InitializeResponse, SubaccountResponse,
-            TransactionEventsResponse, VerifyResponse,
+            BulkTransferResponse, GetBanksResponse, GetTransactionsResponse, InitializeResponse,
+            SubaccountResponse, TransactionEventsResponse, TransferResponse, VerifyResponse,
         },
         transaction::CancelTransactionResponse,
+        transfer::{BulkTransferOptions, InitateTransferOptions},
     },
 };
 
@@ -48,6 +49,15 @@ pub struct ChapaClient {
     config: ChapaConfig,
 }
 
+/// Enum for representing different body formats.
+pub enum RequestBody<T> {
+    /// In case of No Body Contete like (())
+    None,
+    /// Representaion of Json body type
+    Json(T),
+    /// serializes as application/x-www-form-urlencoded
+    Form(T),
+}
 impl ChapaClient {
     /// Creates a new ChapaClient with the provided secret key.
     pub fn new(secret_key: impl Into<String>) -> Result<Self> {
@@ -82,7 +92,12 @@ impl ChapaClient {
     /// Helper function to make a generic GET or POST request to the Chapa API.
     /// # Errors
     /// Returns an error if the request fails or the response cannot be deserialized.
-    async fn make_request<T, K>(&self, endpoint: &str, method: &str, body: Option<K>) -> Result<T>
+    async fn make_request<T, K>(
+        &self,
+        endpoint: &str,
+        method: &str,
+        body: RequestBody<K>,
+    ) -> Result<T>
     where
         T: serde::de::DeserializeOwned,
         K: serde::Serialize,
@@ -96,9 +111,12 @@ impl ChapaClient {
             .map_err(|e| ChapaError::InvalidHttpMethod(format!("{}: {}", method, e)))?;
 
         let mut request = self.http.request(method, url);
-        if let Some(b) = body {
-            request = request.json(&b);
-        }
+        request = match body {
+            RequestBody::None => request,
+            RequestBody::Json(data) => request.json(&data),
+            RequestBody::Form(data) => request.form(&data),
+        };
+
         Ok(request
             .bearer_auth(&self.config.api_key)
             .headers(headers)
@@ -129,7 +147,7 @@ impl ChapaClient {
     /// cannot be deserialized.
     pub async fn get_banks(&mut self) -> Result<GetBanksResponse> {
         let response = self
-            .make_request::<GetBanksResponse, ()>("banks", "GET", None)
+            .make_request::<GetBanksResponse, ()>("banks", "GET", RequestBody::None)
             .await?;
 
         Ok(response)
@@ -173,7 +191,7 @@ impl ChapaClient {
             .make_request::<InitializeResponse, InitializeOptions>(
                 "transaction/initialize",
                 "POST",
-                Some(transaction),
+                RequestBody::Json(transaction),
             )
             .await?;
 
@@ -206,7 +224,7 @@ impl ChapaClient {
         let endpoint = format!("transaction/verify/{}", tx_ref);
 
         let response = self
-            .make_request::<VerifyResponse, ()>(endpoint.as_str(), "GET", None)
+            .make_request::<VerifyResponse, ()>(endpoint.as_str(), "GET", RequestBody::None)
             .await?;
 
         Ok(response)
@@ -234,7 +252,11 @@ impl ChapaClient {
     pub async fn cancel_transaction(&self, tx_ref: &str) -> Result<CancelTransactionResponse> {
         let endpoint = format!("transaction/cancel/{}", tx_ref);
         let response = self
-            .make_request::<CancelTransactionResponse, ()>(endpoint.as_str(), "PUT", None)
+            .make_request::<CancelTransactionResponse, ()>(
+                endpoint.as_str(),
+                "PUT",
+                RequestBody::None,
+            )
             .await?;
         Ok(response)
     }
@@ -262,14 +284,36 @@ impl ChapaClient {
     pub async fn get_transaction_events(&self, ref_id: &str) -> Result<TransactionEventsResponse> {
         let endpoint = format!("transaction/events/{}", ref_id);
         let response = self
-            .make_request::<TransactionEventsResponse, ()>(endpoint.as_str(), "GET", None)
+            .make_request::<TransactionEventsResponse, ()>(
+                endpoint.as_str(),
+                "GET",
+                RequestBody::None,
+            )
             .await?;
         Ok(response)
     }
     /// Retrieves a list of all transactions
+    ///
+    /// This function makes a `GET` request to the `/transactions` endpoint and
+    /// deserializes the JSON response into a [`GetTransactionsResponse`] struct.
+    /// # Example
+    /// ```
+    /// #[tokio::main]
+    /// async fn main() {
+    ///   use chapa_rust::client::ChapaClient;
+    ///   use chapa_rust::config::ChapaConfigBuilder;
+    ///   dotenvy::dotenv().ok();
+    ///   let config = ChapaConfigBuilder::new().build().unwrap();
+    ///   let mut client = ChapaClient::from_config(config).unwrap();
+    ///   let banks = client.get_all_transactions().await.unwrap();
+    /// }
+    /// ```
+    /// # Errors
+    /// Returns an error if the network request fails or if the response
+    /// cannot be deserialized.
     pub async fn get_all_transactions(&self) -> Result<GetTransactionsResponse> {
         let respose = self
-            .make_request::<GetTransactionsResponse, ()>("transactions", "GET", None)
+            .make_request::<GetTransactionsResponse, ()>("transactions", "GET", RequestBody::None)
             .await?;
         Ok(respose)
     }
@@ -312,9 +356,156 @@ impl ChapaClient {
             .make_request::<SubaccountResponse, CreateSubaccountOptions>(
                 "subaccount",
                 "POST",
-                Some(subaccount),
+                RequestBody::Json(subaccount),
             )
             .await?;
         Ok(response)
+    }
+
+    /// Initiates a single transfer.
+    pub async fn initiate_transfer(
+        &self,
+        options: InitateTransferOptions,
+    ) -> Result<TransferResponse> {
+        let response = self
+            .make_request::<TransferResponse, InitateTransferOptions>(
+                "transfers",
+                "POST",
+                RequestBody::Json(options),
+            )
+            .await?;
+        Ok(response)
+    }
+
+    /// Verifies a transfer by its transaction reference.
+    pub async fn verify_transfer(&self, tx_ref: &str) -> Result<TransferResponse> {
+        let endpoint = format!("transfers/verify/{}", tx_ref);
+        let response = self
+            .make_request::<TransferResponse, ()>(endpoint.as_str(), "GET", RequestBody::None)
+            .await?;
+
+        Ok(response)
+    }
+
+    /// Initiates a bulk transfer.
+    ///
+    /// Sends a `POST` request to `/bulk-transfers` with a list of individual transfers.
+    ///
+    /// # Parameters
+    /// - `options`: Bulk transfer options containing a vector of individual transfer details.
+    ///
+    /// # Example
+    /// ```rust,no_run
+    /// #[tokio::main]
+    /// async fn main() {
+    ///     use chapa_rust::client::ChapaClient;
+    ///     use chapa_rust::config::ChapaConfigBuilder;
+    ///     use chapa_rust::models::transfer::{BulkTransferOptions, TransferEntry};
+    ///     dotenvy::dotenv().ok();
+    ///     let config = ChapaConfigBuilder::new().build().unwrap();
+    ///     let mut client = ChapaClient::from_config(config).unwrap();
+    ///     let options = BulkTransferOptions {
+    ///         transfers: vec![
+    ///             TransferEntry {
+    ///                 account_name: "John Doe".to_string(),
+    ///                 account_number: "0123456789".to_string(),
+    ///                 amount: 50,
+    ///                 bank_code: 946,
+    ///                 currency: "ETB".to_string(),
+    ///                 reference: "bulk-tx-1".to_string(),
+    ///             },
+    ///             // ... more entries
+    ///         ],
+    ///     };
+    ///     let response = client.bulk_transfer(options).await.unwrap();
+    /// }
+    /// ```
+    pub async fn bulk_transfer(
+        &self,
+        options: BulkTransferOptions,
+    ) -> Result<BulkTransferResponse> {
+        let respose = self
+            .make_request::<BulkTransferResponse, BulkTransferOptions>(
+                "bulk-transfers",
+                "POST",
+                RequestBody::Json(options),
+            )
+            .await?;
+        Ok(respose)
+    }
+
+    /// Lists all transfers, optionally filtered by date, currency, or status.
+    ///
+    /// This function sends a `GET` request to `/transfers` with optional query parameters
+    /// for filtering the results. The response contains paginated transfer data.
+    ///
+    /// # Parameters
+    /// - `from_date`: Optional start date/time filter (UTC, format `YYYY-MM-DD` or `YYYY-MM-DDTHH:mm:ss`).
+    /// - `to_date`: Optional end date/time filter (UTC, must be ≥ `from_date` if both are provided).
+    /// - `currency`: Optional currency filter (e.g., `"ETB"`, `"USD"`).
+    /// - `status`: Optional status filter (e.g., `"success"`, `"pending"`, `"failed"`).
+    ///
+    /// # Example
+    /// ```
+    /// #[tokio::main]
+    /// async fn main() {
+    ///     use chapa_rust::client::ChapaClient;
+    ///     use chapa_rust::config::ChapaConfigBuilder;
+    ///     dotenvy::dotenv().ok();
+    ///     let config = ChapaConfigBuilder::new().build().unwrap();
+    ///     let mut client = ChapaClient::from_config(config).unwrap();
+    ///     // Get all transfers without filters
+    ///     let all = client.get_all_transfers(None, None, None, None).await.unwrap();
+    ///     // Filter by date range and status
+    ///     let filtered = client.get_all_transfers(
+    ///         Some("2025-03-01"),
+    ///         Some("2025-03-10"),
+    ///         Some("ETB"),
+    ///         Some("success"),
+    ///     ).await.unwrap();
+    /// }
+    /// ```
+    /// # Errors
+    /// Returns an error if the request fails or the response cannot be deserialized.
+    pub async fn get_all_transfers(
+        &self,
+        from_date: Option<&str>,
+        to_date: Option<&str>,
+        currency: Option<&str>,
+        status: Option<&str>,
+    ) -> Result<GetTransactionsResponse> {
+        let mut endpoint = "transfers".to_string();
+        // Build query parameters
+        let mut query_params = Vec::new();
+        if let Some(d) = from_date {
+            query_params.push(("from_date", d));
+        }
+        if let Some(d) = to_date {
+            query_params.push(("to_date", d));
+        }
+        if let Some(c) = currency {
+            query_params.push(("currency", c));
+        }
+        if let Some(s) = status {
+            query_params.push(("status", s));
+        }
+
+        if !query_params.is_empty() {
+            let query_string = query_params
+                .iter()
+                .map(|(k, v)| format!("{}={}", k, v))
+                .collect::<Vec<_>>()
+                .join("&");
+            endpoint.push('?');
+            endpoint.push_str(&query_string);
+        }
+        let respose = self
+            .make_request::<GetTransactionsResponse, ()>(
+                endpoint.as_str(),
+                "GET",
+                RequestBody::None,
+            )
+            .await?;
+        Ok(respose)
     }
 }

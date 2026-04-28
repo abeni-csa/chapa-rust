@@ -29,8 +29,9 @@ use crate::{
     models::{
         payment::{CreateSubaccountOptions, InitializeOptions},
         response::{
-            BulkTransferResponse, GetBanksResponse, GetTransactionsResponse, InitializeResponse,
-            SubaccountResponse, TransactionEventsResponse, TransferResponse, VerifyResponse,
+            BulkTransferResponse, GetAllTransactionResponse, GetAllTransfersResponse,
+            GetBanksResponse, InitializeResponse, SubaccountResponse, TransactionEventsResponse,
+            TransferResponse, VerifyResponse,
         },
         transaction::CancelTransactionResponse,
         transfer::{BulkTransferOptions, InitateTransferOptions},
@@ -311,9 +312,9 @@ impl ChapaClient {
     /// # Errors
     /// Returns an error if the network request fails or if the response
     /// cannot be deserialized.
-    pub async fn get_all_transactions(&self) -> Result<GetTransactionsResponse> {
+    pub async fn get_all_transactions(&self) -> Result<GetAllTransactionResponse> {
         let respose = self
-            .make_request::<GetTransactionsResponse, ()>("transactions", "GET", RequestBody::None)
+            .make_request::<GetAllTransactionResponse, ()>("transactions", "GET", RequestBody::None)
             .await?;
         Ok(respose)
     }
@@ -400,24 +401,36 @@ impl ChapaClient {
     /// async fn main() {
     ///     use chapa_rust::client::ChapaClient;
     ///     use chapa_rust::config::ChapaConfigBuilder;
-    ///     use chapa_rust::models::transfer::{BulkTransferOptions, TransferEntry};
+    ///     use chapa_rust::models::transfer::BulkTransferOptions;
+    ///     use chapa_rust::models::{bank::Currency, transfer::InitateTransferOptions};
     ///     dotenvy::dotenv().ok();
     ///     let config = ChapaConfigBuilder::new().build().unwrap();
-    ///     let mut client = ChapaClient::from_config(config).unwrap();
+    ///     let client = ChapaClient::from_config(config).unwrap();
     ///     let options = BulkTransferOptions {
-    ///         transfers: vec![
-    ///             TransferEntry {
-    ///                 account_name: "John Doe".to_string(),
-    ///                 account_number: "0123456789".to_string(),
-    ///                 amount: 50,
-    ///                 bank_code: 946,
-    ///                 currency: "ETB".to_string(),
-    ///                 reference: "bulk-tx-1".to_string(),
+    ///         title: "This Month Salary!".to_string(),
+    ///         currency: Currency::ETB,
+    ///         bulk_data: vec![
+    ///             InitateTransferOptions {
+    ///                 account_name: "Israel Goytom".to_string(),
+    ///                 account_number: "09xxxxxxxx".to_string(),
+    ///                 amount: "100".to_string(),
+    ///                 reference: "qwertyuuiop".to_string(),
+    ///                 bank_code: 128,
     ///             },
-    ///             // ... more entries
+    ///             InitateTransferOptions {
+    ///                 account_name: "Abenezer Haymanot".to_string(),
+    ///                 account_number: "09xxxxxxxx".to_string(),
+    ///                 amount: "120".to_string(),
+    ///                 reference: "kjl1139471".to_string(),
+    ///                 bank_code: 128,
+    ///             },
     ///         ],
     ///     };
-    ///     let response = client.bulk_transfer(options).await.unwrap();
+    ///     let result = client.bulk_transfer(options).await;
+    ///     match result {
+    ///         Ok(banks) => println!("{:#?}", banks),
+    ///         Err(e) => eprintln!("{:#?}", e),
+    ///     }
     /// }
     /// ```
     pub async fn bulk_transfer(
@@ -473,7 +486,7 @@ impl ChapaClient {
         to_date: Option<&str>,
         currency: Option<&str>,
         status: Option<&str>,
-    ) -> Result<GetTransactionsResponse> {
+    ) -> Result<GetAllTransfersResponse> {
         let mut endpoint = "transfers".to_string();
         // Build query parameters
         let mut query_params = Vec::new();
@@ -489,7 +502,6 @@ impl ChapaClient {
         if let Some(s) = status {
             query_params.push(("status", s));
         }
-
         if !query_params.is_empty() {
             let query_string = query_params
                 .iter()
@@ -500,7 +512,7 @@ impl ChapaClient {
             endpoint.push_str(&query_string);
         }
         let respose = self
-            .make_request::<GetTransactionsResponse, ()>(
+            .make_request::<GetAllTransfersResponse, ()>(
                 endpoint.as_str(),
                 "GET",
                 RequestBody::None,

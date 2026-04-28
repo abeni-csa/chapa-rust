@@ -1,5 +1,7 @@
 use chapa_rust::{
-    client::ChapaClient, config::ChapaConfigBuilder, models::payment::InitializeOptions,
+    client::ChapaClient,
+    config::ChapaConfigBuilder,
+    models::{bank::Currency, payment::InitializeOptions},
 };
 use mockito::{self, Matcher};
 
@@ -55,7 +57,7 @@ async fn test_initialize_transaction() {
 
     let transaction_success = InitializeOptions {
         amount: "100".to_string(),
-        currency: "ETB".to_string(),
+        currency: Currency::ETB,
         email: Some("customer@gmail.com".to_string()),
         first_name: Some("John".to_string()),
         last_name: Some("Doe".to_string()),
@@ -266,7 +268,6 @@ async fn test_cancel_transaction_already_expired() {
 async fn test_get_transaction_events_success() {
     let mut server = mockito::Server::new_async().await;
     let ref_id = "chewatatest-6669";
-
     let success = server
         .mock("GET", format!("/v1/transaction/events/{}", ref_id).as_str())
         .match_header(
@@ -286,13 +287,6 @@ async fn test_get_transaction_events_success() {
                         "type": "log",
                         "created_at": "2024-07-23T07:31:32.000000Z",
                         "updated_at": "2024-07-23T07:31:32.000000Z"
-                    },
-                    {
-                        "item": 23567,
-                        "message": "Transaction is successful with TELEBIRR - RSLT",
-                        "type": "log",
-                        "created_at": "2024-07-23T07:31:55.000000Z",
-                        "updated_at": "2024-07-23T07:31:55.000000Z"
                     },
                     {
                         "item": 24678,
@@ -365,6 +359,133 @@ async fn test_get_transaction_events_failure() {
         .unwrap();
     assert_eq!(response_failure.status, "failed");
     assert!(!response_failure.message.is_null()); // NOTE: check if it is empty because I suspect there might be a change if I put string comparison.
+    assert!(response_failure.data.is_none());
+    failure.assert_async().await;
+}
+
+#[tokio::test]
+async fn test_get_all_transactions_success() {
+    let mut server = mockito::Server::new_async().await;
+
+    let success = server
+        .mock("GET", "/v1/transactions")
+        .match_header(
+            "authorization",
+            Matcher::Regex(r#"^Bearer .+$"#.to_string()),
+        )
+        .with_status(200)
+        .with_header("content-type", "application/json")
+        .with_body(
+            serde_json::to_string(&serde_json::json!({
+                "message": "Transactions retrieved successfully",
+                "status": "success",
+                "data": {
+                    "transactions": [
+                        {
+                            "status": "pending",
+                            "ref_id": "VcEu3Hf55JU",
+                            "type": "Payment Link",
+                            "created_at": "2024-07-27T02:22:46.000000Z",
+                            "currency": "ETB",
+                            "amount": "12.000",
+                            "charge": "0.000",
+                            "trans_id": null,
+                            "payment_method": "card",
+                            "customer": {
+                                "id": 1301688,
+                                "email": null,
+                                "first_name": null,
+                                "last_name": null,
+                                "mobile": null
+                            }
+                        },
+                        {
+                            "status": "pending",
+                            "ref_id": "R6XqfcNVQjW",
+                            "type": "Payment Link",
+                            "created_at": "2024-06-30T04:31:46.000000Z",
+                            "currency": "ETB",
+                            "amount": "12.000",
+                            "charge": "0.000",
+                            "trans_id": null,
+                            "payment_method": "card",
+                            "customer": {
+                                "id": 1145318,
+                                "email": null,
+                                "first_name": null,
+                                "last_name": null,
+                                "mobile": null
+                            }
+                        }
+                    ],
+                    "pagination": {
+                        "per_page": 10,
+                        "current_page": 1,
+                        "first_page_url": "https://api.chapa.co/v1/transactions?page=1",
+                        "next_page_url": "https://api.chapa.co/v1/transactions?page=2",
+                        "prev_page_url": null
+                    }
+                }
+            }))
+            .unwrap(),
+        )
+        .create_async()
+        .await;
+
+    let config = ChapaConfigBuilder::new()
+        .base_url(server.url())
+        .api_key("CHASECK_TEST-XXXXXXXXXXXXXXX")
+        .build()
+        .unwrap();
+
+    let client = ChapaClient::from_config(config).unwrap();
+    // ACT for success
+    let response_success = client.get_all_transactions().await.unwrap();
+    assert_eq!(response_success.status, "success");
+    assert_eq!(
+        response_success.message,
+        "Transactions retrieved successfully"
+    ); // NOTE: ckeck if it is empty because I suspect there might be a change if I put string comparison.
+    assert!(response_success.data.is_some());
+
+    success.assert_async().await;
+}
+
+#[tokio::test]
+async fn test_get_all_transactions_failure() {
+    let mut server = mockito::Server::new_async().await;
+
+    let failure = server
+        .mock("GET", "/v1/transactions")
+        .match_header(
+            "authorization",
+            Matcher::Regex(r#"^Bearer .+$"#.to_string()),
+        )
+        .with_status(200)
+        .with_header("content-type", "application/json")
+        .with_body(
+            serde_json::to_string(&serde_json::json!({
+                        "message": "Invalid API Key or  the business can't accept payments at the moment. Please verify your API key and ensure the account is active and able to process payments.",
+                        "status": "failed",
+                        "data": null
+            }))
+            .unwrap(),
+        )
+        .create_async()
+        .await;
+
+    let config = ChapaConfigBuilder::new()
+        .base_url(server.url())
+        .api_key("CHASECK_TEST-XXXXXXXXXXXXXXX")
+        .build()
+        .unwrap();
+
+    let client = ChapaClient::from_config(config).unwrap();
+
+    // ACT for failure
+    let response_failure = client.get_all_transactions().await.unwrap();
+    assert_eq!(response_failure.status, "failed");
+    assert!(!response_failure.message.is_null());
     assert!(response_failure.data.is_none());
     failure.assert_async().await;
 }

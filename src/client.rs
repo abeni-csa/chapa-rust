@@ -565,7 +565,7 @@ impl ChapaClient {
     /// specific currency by appending the currency code to the endpoint
     /// useful for checking available funds before initiating transfers or for reconciliation purposes
     ///
-    /// This function sends a `GET` request to `/balances/{USD||ETB}`
+    /// This function sends a `GET` request to `/balances/{usd||etb}`
     ///  filter balance information for a specific currency by appending the currency code to the endpoint
     /// The response contains current account balance information from Chapa.
     ///

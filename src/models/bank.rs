@@ -30,9 +30,10 @@ pub struct Bank {
 }
 
 /// Represents the supported currencies for banks.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Default, Serialize, Deserialize)]
 pub enum Currency {
     /// Ethiopian Birr
+    #[default]
     ETB,
     /// United States Dollar
     USD,
@@ -42,7 +43,7 @@ impl Currency {
     /// Returns the ISO 4217 currency code as a static string slice.
     /// # Examples
     /// ```
-    /// let currency = ChapaCurrency::ETB;
+    /// let currency = Currency::ETB;
     /// assert_eq!(currency.as_str(), "ETB");
     /// ```
     pub fn as_str(&self) -> &'static str {
@@ -55,7 +56,7 @@ impl Currency {
 
 impl fmt::Display for Currency {
     /// Formats the currency as its three‑letter ISO 4217 code.
-    /// This enables direct use in formatting macros like `println!` and `format!`. Which Result Direct `String`
+    /// This enables direct use in formatting macros like `println!` and `format!`.
     /// # Examples
     /// ```
     /// let currency = ChapaCurrency::USD;

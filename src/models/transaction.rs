@@ -1,19 +1,7 @@
 //! Models related to get_transactions API responses.
+use crate::models::bank::Currency;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-
-use crate::models::bank::Currency;
-
-/// Represents the response from Chapa when fetching all transactions.
-#[derive(Debug, Serialize, Deserialize)]
-pub struct GetTransactionsResponse {
-    /// The status message of the response.
-    pub message: String,
-    /// The status of the response.
-    pub status: String,
-    /// The data containing the list of transactions and pagination info.
-    pub data: GetTransactionsData,
-}
 
 /// Represents the data section of the GetTransactionsResponse.
 #[derive(Debug, Serialize, Deserialize)]
@@ -30,13 +18,13 @@ pub struct Customer {
     /// The unique identifier of the customer.
     pub id: u32,
     /// The first name of the customer.
-    pub first_name: String,
+    pub first_name: Option<String>,
     /// The last name of the customer.
-    pub last_name: String,
+    pub last_name: Option<String>,
     /// The email address of the customer.
-    pub email: String,
+    pub email: Option<String>,
     /// The mobile number of the customer.
-    pub mobile: String,
+    pub mobile: Option<String>,
 }
 
 /// Represents a transaction in Chapa.
@@ -57,7 +45,7 @@ pub struct Transaction {
     /// The charge applied to the transaction.
     pub charge: String,
     /// The unique identifier of the transaction.
-    pub trans_id: String,
+    pub trans_id: Option<String>,
     /// The payment method used for the transaction.
     pub payment_method: String,
     /// The customer associated with the transaction.
@@ -88,20 +76,32 @@ pub struct CancelTransactionResponse {
     /// Data about the canceled in deatile, like its tx_ref, amout
     pub data: Option<CancelTransactionData>,
 }
-/// Data structure representing a canceled transaction response from Chapa.
+/// Data structure representing a canceled transaction response.
 #[derive(Debug, Deserialize)]
 pub struct CancelTransactionData {
     /// The unique transaction reference string.
     pub tx_ref: String,
-
     /// The transaction amount.
     pub amount: f64,
-
     /// The transaction currency code.
     pub currency: Currency,
     /// When the transaction was created.
     pub created_at: DateTime<Utc>,
-
     /// When the cancellation occurred.
+    pub updated_at: DateTime<Utc>,
+}
+
+/// Data structure representing a transaction  events response .
+#[derive(Debug, Serialize, Deserialize)]
+pub struct TransactionEventData {
+    /// transaction event uinque number
+    pub item: i32,
+    /// Message containg detaile about the event
+    pub message: String,
+    /// type of the event
+    pub r#type: String,
+    /// When the event was initally created.
+    pub created_at: DateTime<Utc>,
+    /// When the evet occurred/updated.
     pub updated_at: DateTime<Utc>,
 }

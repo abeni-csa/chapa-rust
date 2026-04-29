@@ -3,6 +3,8 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
+use crate::models::bank::Currency;
+
 // TODO: check the type of `amount` field has some inconsistency in the docs, sometimes it's string sometimes number
 // ------------------------------------- Initialize Payment ---------------------------------------------
 
@@ -18,7 +20,7 @@ pub struct InitializeOptions {
     /// The phone number of the customer.
     pub phone_number: Option<String>,
     /// The currency for the transaction (e.g., "ETB", "USD").
-    pub currency: String,
+    pub currency: Currency,
     /// The amount to be charged in the transaction.
     pub amount: String,
     /// A unique reference for the transaction.
@@ -37,13 +39,24 @@ pub struct InitializeOptions {
 
 /// Represents a subaccount for payment splitting.
 #[derive(Debug, Serialize, Deserialize)]
-pub struct Subaccount {
-    /// The unique identifier of the subaccount.
-    pub id: String,
+pub struct CreateSubaccountOptions {
+    /// The bank accout owner name.
+    pub account_name: String,
+    /// The unique identifier of the bank code form [get banks](https://developer.chapa.co/transfer/list-banks) endpoint.
+    pub bank_code: u32,
+    /// The banck account number for subaccount.
+    pub account_number: String,
     /// The type of split (e.g., percentage or flat).
     pub split_type: Option<SplitType>,
     /// The value of the split (e.g., percentage value or flat amount).
     pub split_value: Option<f64>,
+}
+
+/// Represents a subaccount for payment splitting.
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SubaccountData {
+    /// The unique identifier of the subaccount.
+    pub id: String, // NOTE  this is usialy UUID for the next reales we will fix this
 }
 
 /// Customization options for the payment interface.

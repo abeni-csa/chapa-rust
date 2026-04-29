@@ -22,6 +22,7 @@
 //!
 //! All response models can be directly deserialized from Chapa API JSON responses.
 
+pub mod balances;
 pub mod bank;
 pub mod payment;
 pub mod response;

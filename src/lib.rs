@@ -50,11 +50,6 @@
 //!
 //! | Category | Methods |
 //! |-----------|----------|
-//! | Transactions | `initialize`, `verify`, `all_transactions`, `transaction_logs` |
-//! | Split Payments | `split_payment` |
-//! | Banks | `list_banks` |
-//! | Subaccounts | `create_subaccount` |
-//! | Transfers | `transfer`, `bulk_transfer`, `verify_transfer`, `all_transfers` |
 //! | Direct Charges | `direct_charge`, `authorize_direct_charge` |
 //! | Utilities | `generate_tx_ref()` |
 //!

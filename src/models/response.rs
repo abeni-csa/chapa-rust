@@ -4,6 +4,7 @@ use serde::Deserialize;
 use serde_json::Value;
 
 use crate::models::{
+    balances::{Balance, SwapData},
     bank::Bank,
     payment::{CheckoutURL, SubaccountData, VerifyData},
     transaction::{GetTransactionsData, TransactionEventData},
@@ -55,7 +56,13 @@ pub type TransactionEventsResponse = ChapaResponse<Option<Vec<TransactionEventDa
 pub type GetAllTransfersResponse = ChapaTransferListResponse;
 /// Type alias for All Transaction respose wich conatine  all the transactions
 pub type GetAllTransactionResponse = ChapaResponse<Option<GetTransactionsData>>;
-/// trnasfer
+/// Type alias for trnasfer
 pub type TransferResponse = ChapaResponse<Option<TransferData>>;
-/// bulk trasfer
+/// Type alias for  bulk trasfer
 pub type BulkTransferResponse = ChapaResponse<Option<BulkTransferData>>;
+/// Type alias for GetSingleBalanceResponse respose balance information for a specific currency
+pub type GetSingleCurrencyBalanceResponse = ChapaResponse<Option<Balance>>;
+/// Type alias for BalanceResponse respose to retrieve your current account balance information
+pub type GetBalanceResponse = ChapaResponse<Option<Vec<Balance>>>;
+/// Type alias for GetSwapResponse Swap API for converting USD to ETB
+pub type GetSwapResponse = ChapaResponse<Option<SwapData>>;

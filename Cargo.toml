@@ -5,8 +5,8 @@ edition = "2024"
 description = "Chapa SDK for Rust to integrate Chapa payment gateway into your Rust applications."
 
 authors = [
-  "YabetsZ <yabetszekaryas07@gmail.com>",
   "Abenezer Haymanot <@abeni-csa> [abenzerhaymanot@gmail.com]",
+  "YabetsZ  <@YabetsZ> [yabetszekaryas07@gmail.com]",
 ]
 
 license = "MIT"

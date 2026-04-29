@@ -27,10 +27,13 @@ use crate::{
     config::{ChapaConfig, ChapaConfigBuilder},
     error::{ChapaError, Result},
     models::{
+        balances::SwapOptions,
+        bank::Currency,
         payment::{CreateSubaccountOptions, InitializeOptions},
         response::{
             BulkTransferResponse, GetAllTransactionResponse, GetAllTransfersResponse,
-            GetBanksResponse, InitializeResponse, SubaccountResponse, TransactionEventsResponse,
+            GetBalanceResponse, GetBanksResponse, GetSingleCurrencyBalanceResponse,
+            GetSwapResponse, InitializeResponse, SubaccountResponse, TransactionEventsResponse,
             TransferResponse, VerifyResponse,
         },
         transaction::CancelTransactionResponse,
@@ -519,5 +522,133 @@ impl ChapaClient {
             )
             .await?;
         Ok(respose)
+    }
+
+    /// Gets balances for all currencies.
+    ///
+    /// This balance API allows you to retrieve your current account balance information from Chapa
+    /// useful for checking available funds before initiating transfers or for reconciliation purposes
+    ///
+    /// This function sends a `GET` request to `/balances`
+    /// The response contains current account balance information from Chapa.
+    ///
+    /// # Example
+    /// ```
+    /// #[tokio::main]
+    /// async fn main() {
+    /// use chapa_rust::client::ChapaClient;
+    /// use chapa_rust::config::ChapaConfigBuilder;
+    /// dotenvy::dotenv().ok();
+    /// let config = ChapaConfigBuilder::new().build().unwrap();
+    /// let mut client = ChapaClient::from_config(config).unwrap();
+    /// let  get_balances= client.get_balances().await;
+    ///     match get_balances{
+    ///         Ok(balances ) => println!("{:#?}", balances),
+    ///         Err(e) => eprintln!("{:#?}", e),
+    ///     }
+    /// }
+    /// ```
+    /// # Errors
+    /// Returns an error if the network request fails or if the response
+    /// cannot be deserialized.
+    pub async fn get_balances(&self) -> Result<GetBalanceResponse> {
+        let response = self
+            .make_request::<GetBalanceResponse, ()>("balances", "GET", RequestBody::None)
+            .await?;
+
+        Ok(response)
+    }
+
+    /// Gets balances by currencies.
+    ///
+    /// This balance by filter API allows you to retrieve balance information for a
+    /// specific currency by appending the currency code to the endpoint
+    /// useful for checking available funds before initiating transfers or for reconciliation purposes
+    ///
+    /// This function sends a `GET` request to `/balances/{USD||ETB}`
+    ///  filter balance information for a specific currency by appending the currency code to the endpoint
+    /// The response contains current account balance information from Chapa.
+    ///
+    /// # Example
+    /// ```
+    /// #[tokio::main]
+    /// async fn main() {
+    ///    use chapa_rust::client::ChapaClient;
+    ///    use chapa_rust::config::ChapaConfigBuilder;
+    ///    dotenvy::dotenv().ok();
+    ///    let config = ChapaConfigBuilder::new().build().unwrap();
+    ///    let mut client = ChapaClient::from_config(config).unwrap();
+    ///    let  get_balances= client.get_balances().await;
+    ///        match result {
+    ///            Ok(balances ) => println!("{:#?}", balances),
+    ///            Err(e) => eprintln!("{:#?}", e),
+    ///        }
+    /// }
+    /// ```
+    /// # Errors
+    /// Returns an error if the network request fails or if the response
+    /// cannot be deserialized.
+    pub async fn get_balance_by_currency(
+        &self,
+        currency: Currency,
+    ) -> Result<GetSingleCurrencyBalanceResponse> {
+        let endpoint = format!("balances/{}", currency);
+        let response = self
+            .make_request::<GetSingleCurrencyBalanceResponse, ()>(
+                endpoint.to_lowercase().as_str(),
+                "GET",
+                RequestBody::None,
+            )
+            .await?;
+
+        Ok(response)
+    }
+
+    /// Swap API for converting USD to ETB
+    ///
+    /// ## Important Notes
+    /// - The minimum amount for conversion is 1 USD
+    /// - Current exchange rate is applied at the time of the swap
+    /// - Swaps are processed immediately and cannot be reversed
+    /// - The maximum allowed amount for swap is $10,000
+    /// - The exchanged amount will be added to the business ETB balance
+    ///
+    /// # Example
+    /// ```
+    /// #[tokio::main]
+    /// async fn main() {
+    ///     use chapa_rust::{
+    ///         client::ChapaClient,
+    ///         config::ChapaConfigBuilder,
+    ///         models::{balances::SwapOptions, bank::Currency},
+    ///     };
+    ///     dotenvy::dotenv().ok();
+    ///     let config = ChapaConfigBuilder::new().build().unwrap();
+    ///     let mut client = ChapaClient::from_config(config).unwrap();
+    ///     let option = SwapOptions {
+    ///         amount: 100.0,
+    ///         from: Currency::USD,
+    ///         to: Currency::ETB,
+    ///     };
+    ///     let swap = client.swap_currency(option).await;
+    ///     match swap {
+    ///         Ok(swap) => println!("{:#?}", swap),
+    ///         Err(e) => eprintln!("{:#?}", e),
+    ///     }
+    /// }
+    /// ```
+    /// # Errors
+    /// Returns an error if the network request fails or if the response
+    /// cannot be deserialized.
+    pub async fn swap_currency(&self, options: SwapOptions) -> Result<GetSwapResponse> {
+        let response = self
+            .make_request::<GetSwapResponse, SwapOptions>(
+                "swap",
+                "POST",
+                RequestBody::Json(options),
+            )
+            .await?;
+
+        Ok(response)
     }
 }

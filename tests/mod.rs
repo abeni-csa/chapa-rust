@@ -1,3 +1,4 @@
+mod balances_test;
 mod subaccounts_test;
 mod transaction_test;
 mod transfer_test;

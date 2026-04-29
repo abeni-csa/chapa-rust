@@ -36,13 +36,15 @@ pub struct MetaPagination {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct InitateTransferOptions {
     /// The name of the account holder.
-    pub account_name: String,
+    pub account_name: Option<String>,
     /// The bank account number to which the transfer will be made.
     pub account_number: String,
     /// The amount to be transferred.
     pub amount: String,
+    /// ETB or USD
+    pub currency: Option<Currency>,
     /// A unique reference for the transfer.
-    pub reference: String,
+    pub reference: Option<String>,
     /// The bank code of the recipient's bank.
     pub bank_code: u32,
 }

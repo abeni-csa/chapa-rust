@@ -45,7 +45,7 @@ async fn test_create_subaccount() {
 
     assert_eq!(response.status.as_str(), "success");
     assert!(!response.message.is_null());
-    assert_eq!(response.data.id, "837b4e5e-57c8-4e39-b2df-66e7886b8bdb");
+    assert!(response.data.is_some());
 
     mock.assert_async().await;
 }

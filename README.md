@@ -123,7 +123,10 @@ Under the hood, this is a POST request to the Chapa API. It also does the work o
 use chapa_rust::{
     client::ChapaClient,
     config::ChapaConfigBuilder,
-    models::payment::{Customization, InitializeOptions},
+    models::{
+        bank::Currency,
+        payment::{Customization, InitializeOptions},
+    },
 };
 #[tokio::main]
 async fn main() {
@@ -136,7 +139,7 @@ async fn main() {
     let tx_ref = String::from("mail_order_injera");
     let test_transaction = InitializeOptions {
         amount: "150".to_string(),
-        currency: String::from("USD"),
+        currency: Currency::USD,
         email: Some(String::from("john_doe@gmail.com")),
         first_name: Some(String::from("John")),
         last_name: Some(String::from("Doe")),

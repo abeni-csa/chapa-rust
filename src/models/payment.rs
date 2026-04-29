@@ -82,6 +82,21 @@ pub enum SplitType {
     FLAT,
 }
 
+impl SplitType {
+    /// Returns the ISO 4217 currency code as a static string slice.
+    /// # Examples
+    /// ```
+    /// let currency = Currency::ETB;
+    /// assert_eq!(currency.as_str(), "ETB");
+    /// ```
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::PERCENTAGE => "percentage",
+            Self::FLAT => "flat",
+        }
+    }
+}
+
 /// Represents the checkout URL provided by Chapa after a successful initialization.
 #[derive(Debug, Deserialize)]
 pub struct CheckoutURL {
@@ -102,7 +117,7 @@ pub struct VerifyData {
     /// The email address of the customer.
     pub email: Option<String>,
     /// The currency for the transaction (e.g., "ETB", "USD").
-    pub currency: Option<String>,
+    pub currency: Option<Currency>,
     /// The amount to be charged in the transaction.
     pub amount: f64,
     /// The charge for the transaction.

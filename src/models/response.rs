@@ -49,7 +49,7 @@ pub type InitializeResponse = ChapaResponse<Option<CheckoutURL>>;
 /// Type alias for VerifyResponse, which contains the verification data.
 pub type VerifyResponse = ChapaResponse<Option<VerifyData>>;
 /// Type alias for SubaccountResponse, which contains the subaccount data.
-pub type SubaccountResponse = ChapaResponse<SubaccountData>;
+pub type SubaccountResponse = ChapaResponse<Option<SubaccountData>>;
 /// Type alias for TransactionEventsResponse, which allows you to view the timeline for a transaction
 pub type TransactionEventsResponse = ChapaResponse<Option<Vec<TransactionEventData>>>;
 /// Type alias for GetTransactionsResponse , which t allows you to view all the transactions
